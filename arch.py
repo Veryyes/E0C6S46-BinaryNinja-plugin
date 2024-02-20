@@ -9,10 +9,6 @@ from binaryninja import (
 
 from .disassembler import Disassembler
 
-# Registers #
-#
-# 
-
 class E0C6S46(Architecture):
     name = "E0C6S46"
     endianness = Endianness.BigEndian
@@ -63,6 +59,13 @@ class E0C6S46(Architecture):
 
     # 4 bits
     regs['F'] = RegisterInfo('F', 1)
+
+    # Intrinsics
+    instrinsics = {
+        "NOP5": IntrinsicInfo([], []),
+        "NOP7": IntrinsicInfo([], []),
+        "HALT": IntrinsicInfo([], [])
+    }
 
     def __init__(self):
         super().__init__()

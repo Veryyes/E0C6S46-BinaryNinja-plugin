@@ -60,6 +60,7 @@ class Instruction:
         self.parse()
 
     def parse(self):
+        # BRANCH INSTRUCTIONS
         if self.upper_word == dec('1110') and (self.data[1] >> 1) == dec('010'):
             self.mnemonic = "PSET"
             self.op1 = (self.data[1] & 31, IMM)
@@ -118,13 +119,52 @@ class Instruction:
             self.mnemonic = "RETS"
             return
 
+        if self.upper_word == dec('0001'):
+            self.mnemonic = "RETD"
+            self.op1 = ((self.middle_word << 4) | self.lower_word, IMM)
+            return
+
+        # SYSTEM CONTROL
+        if self.value == dec('111111111011'):
+            self.mnemonic = "NOP5"
+            return
+
+        if self.value == dec('111111111111'):
+            self.mnemonic = "NOP7"
+            return
+
+        if self.value == dec('111111111000'):
+            self.mnemonic = "HALT"
+            return
+
+        # INDEX OPERATIONS
+        if self.value == dec('111011100000'):
+            self.mnemonic = "INC"
+            self.op1 = ("X", REG)
+            return
+
+        if self.value == dec('111011110000'):
+            self.mnemonic = "INC"
+            self.op1 = ("Y", REG)
+            return
+
+        if self.upper_word == dec('1011'):
+            self.mnemonic = "LD"
+            self.op1 = ("X", REG)
+            self.op2 = (self.s, IMM)
+
+        if self.upper_word == dec('1000'):
+            self.mnemonic = "LD"
+            self.op1 = ("Y", REG)
+            self.op2 = (self.s, IMM)
+
+        # if self.upper_word == dec('1110'):
+        #     if self.middle_word == dec('1000'):
+        #         self.mnemonic = "LD"
+        #         pass
+
 class Disassembler:
     def __init__(self):
-        # Parse instructions using a tree
-        # examine high byte first
-        # self.hb_instr = {
-        #     14: self.high14
-        # }
         pass
 
     @classmethod
@@ -154,8 +194,6 @@ class Disassembler:
 
             value, token_type = Disassembler.parse_operand(self.op2)
             tokens.append(InstructionTextToken(token_type, value))
-
-    # def pset(self, data, addr):
 
 
     
