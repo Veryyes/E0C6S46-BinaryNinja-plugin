@@ -15,6 +15,7 @@ IMM = 0
 ADDR = 1
 STR = 2
 REG = 3
+REG_DEREF = 4
 
 ################################################
 # Nomenclature b/c idk what else to call these #
@@ -29,6 +30,13 @@ REG = 3
 ################################################
 
 class Instruction:
+    r = [
+        ('A', REG),
+        ('B', REG),
+        ('IX', REG_DEREF),
+        ('IY', REG_DEREF)
+    ]
+
     def __init__(self, data:bytes):
         if len(data) == 0:
             raise ValueError("Zero length bytes to decode")
@@ -138,6 +146,8 @@ class Instruction:
             return
 
         # INDEX OPERATIONS
+
+        # INC
         if self.value == dec('111011100000'):
             self.mnemonic = "INC"
             self.op1 = ("X", REG)
@@ -148,6 +158,7 @@ class Instruction:
             self.op1 = ("Y", REG)
             return
 
+        # LD
         if self.upper_word == dec('1011'):
             self.mnemonic = "LD"
             self.op1 = ("X", REG)
@@ -158,10 +169,125 @@ class Instruction:
             self.op1 = ("Y", REG)
             self.op2 = (self.s, IMM)
 
-        # if self.upper_word == dec('1110'):
-        #     if self.middle_word == dec('1000'):
-        #         self.mnemonic = "LD"
-        #         pass
+        if self.upper_word == dec('1110'):
+            low_high = (self.lower_word >> 2) & 3
+            if self.middle_word == dec('1000'):
+                self.mnemonic = "LD"
+                if low_high == dec('00'):
+                    self.op1 = ("XP", REG)
+                    self.op2 = self.r[low_high]
+                    return
+                elif low_high == dec('01'):
+                    self.op1 = ("XH", REG)
+                    self.op2 = self.r[low_high]
+                    return
+                elif low_high == dec('10'):
+                    self.op1 = ("XL", REG)
+                    self.op2 = self.r[low_high]
+                    return
+            elif self.middle_word == dec('1001'):
+                self.mnemonic = "LD"
+                if low_high == dec('00'):
+                    self.op1 = ("YP", REG)
+                    self.op2 = self.r[low_high]
+                    return
+                elif low_high == dec('01'):
+                    self.op1 = ("YH", REG)
+                    self.op2 = self.r[low_high]
+                    return
+                elif low_high == dec('10'):
+                    self.op1 = ("YL", REG)
+                    self.op2 = self.r[low_high]
+                    return
+            elif self.middle_word == dec('1010'):
+                self.mnemonic = "LD"
+                if low_high == dec('00'):
+                    self.op1 = self.r[low_high]
+                    self.op2 = ("XP", REG)
+                    return
+                elif low_high == dec('01'):
+                    self.op1 = self.r[low_high]
+                    self.op2 = ("XH", REG)
+                    return
+                elif low_high == dec('10'):
+                    self.op1 = self.r[low_high]
+                    self.op2 = ("XL", REG)
+                    return
+            elif self.middle_word == dec('1011'):
+                self.mnemonic = "LD"
+                if low_high == dec('00'):
+                    self.op1 = self.r[low_high]
+                    self.op2 = ("YP", REG)
+                    return
+                elif low_high == dec('01'):
+                    self.op1 = self.r[low_high]
+                    self.op2 = ("YH", REG)
+                    return
+                elif low_high == dec('10'):
+                    self.op1 = self.r[low_high]
+                    self.op2 = ("YL", REG)
+                    return
+        
+        
+        if self.upper_word == dec('1010'):
+            # ADC
+            if self.middle_word == dec('0000'):
+                self.mnemonic = "ADC"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0001'):
+                self.mnemonic = "ADC"
+                self.op1 = ("XL", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0010'):
+                self.mnemonic = "ADC"
+                self.op1 = ("YH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0011'):
+                self.mnemonic = "ADC"
+                self.op1 = ("YL", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+            # CP
+            if self.middle_word == dec('0100'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0101'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0110'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0111'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+        if self.upper_word == dec('1110'):
+            if (self.middle_word >> 2) & 3 == dec('00'):
+                self.mnemonic = "LD"
+                self.op1 = self.r[self.middle_low]
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('1111'):
+                self.mnemonic = "LD"
+                self.op1 = self.r[(self.lower_word >> 2) & 3]
+                self.op2 = self.r[self.lower_word & 3]
+                return
+        # if self.upper_word == dec('1111'):
+        #     if self.middle_word == dec('1010')
+
 
 class Disassembler:
     def __init__(self):
