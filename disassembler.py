@@ -274,6 +274,7 @@ class Instruction:
                 self.op2 = (self.lower_word, IMM)
                 return
 
+        # LD
         if self.upper_word == dec('1110'):
             if (self.middle_word >> 2) & 3 == dec('00'):
                 self.mnemonic = "LD"
@@ -285,8 +286,52 @@ class Instruction:
                 self.op1 = self.r[(self.lower_word >> 2) & 3]
                 self.op2 = self.r[self.lower_word & 3]
                 return
-        # if self.upper_word == dec('1111'):
-        #     if self.middle_word == dec('1010')
+        if self.upper_word == dec('1111'):
+            if self.middle_word == dec('1010'):
+                self.mnemonic = "LD"
+                self.op1 = ("A", REG)
+                self.op2 = (self.lower_word, ADDR)
+                return
+            elif self.middle_word == dec('1011'):
+                self.mnemonic = "LD"
+                self.op1 = ("B", REG)
+                self.op2 = (self.lower_word, ADDR)
+                return
+            elif self.middle_word == dec('1000'):
+                self.mnemonic = "LD"
+                self.op1 = (self.lower_word, ADDR)
+                self.op2 = ("A", REG)
+                return
+            elif self.middle_word == dec('1001'):
+                self.mnemonic = "LD"
+                self.op1 = (self.lower_word, ADDR)
+                self.op2 = ("B", REG)
+                return 
+
+        if self.upper_word == dec('1110'):
+            # LDPX
+            if self.middle_word == dec('0110'):
+                self.mnemonic = "LDPX"
+                self.op1 = ("IX", REG_DEREF)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('1110'):
+                self.mnemonic = "LDPX"
+                self.op1 = self.r[(self.lower_word >> 2) & 3]
+                self.op2 = self.r[self.lower_word & 3]
+                return
+            # LDPY
+            elif self.middle_word == dec('0111'):
+                self.mnemonic = "LDPY"
+                self.op1 = ("IY", REG_DEREF)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('1111'):
+                self.mnemonic = "LDPY"
+                self.op1 = self.r[(self.lower_word >> 2) & 3]
+                self.op2 = self.r[self.lower_word & 3]
+                return
+
 
 
 class Disassembler:
