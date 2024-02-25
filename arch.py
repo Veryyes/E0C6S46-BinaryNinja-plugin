@@ -35,6 +35,7 @@ class E0C6S46(Architecture):
     
     # 12 bits
     regs['IX'] = RegisterInfo('IX', 2)
+    # TODO sub registers
     
     # 12 bits
     regs['IY'] = RegisterInfo('IY', 2)
@@ -47,6 +48,8 @@ class E0C6S46(Architecture):
 
     # 4 bits
     regs['NPP'] = RegisterInfo('NPP', 1)
+
+    regs['PC'] = RegisterInfo('PC', 4)
 
     # 1 bit
     regs['PCB'] = RegisterInfo('PCB', 1)
@@ -73,5 +76,12 @@ class E0C6S46(Architecture):
         self.disassembler = Disassembler()
 
     def get_instruction_info(self, data, addr):
-        # print(type(data))
-        pass
+        _, branches = self.disassembler.disasm(data, addr)
+        instr_info = InstructionInfo(2)
+        # TODO handle branches
+
+        return instr_info
+
+    def get_instruction_text(self, data, addr):
+        tokens, _ = self.disassembler.disasm(data, addr)
+        return tokens, 2

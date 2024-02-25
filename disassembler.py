@@ -1,6 +1,5 @@
 from functools import lru_cache
 
-
 from binaryninja import (
     InstructionTextToken,
     InstructionTextTokenType,
@@ -43,7 +42,7 @@ class Instruction:
         elif len(data) < 2:
             data = b'\x00' + data
         else:
-            data = data[-2:] & (2**12 - 1)
+            data = data[-2:]
 
         self.data = data
 
@@ -55,7 +54,7 @@ class Instruction:
         self.middle_low = data[1] & 48 >> 4
         self.low_low = data[1] & 3
 
-        self.p = self.data[1] & 31
+        self.p = data[1] & 31
         self.s = (self.middle_word << 4) | self.lower_word
         self.l = self.s
         self.i = self.lower_word
@@ -629,14 +628,20 @@ class Instruction:
                 self.op1 = self.r[self.middle_word & 3]
                 return
 
+        self.mnemonic = "UNKNOWN"
 
+# IMM = 0
+# ADDR = 1
+# STR = 2
+# REG = 3
+# REG_DEREF = 4
 
 class Disassembler:
     def __init__(self):
         pass
 
     @classmethod
-    def parse_operand(op):
+    def parse_operand(cls, op):
         value, _type = op
         if _type == IMM:
             token_type = InstructionTextTokenType.IntegerToken
@@ -648,20 +653,22 @@ class Disassembler:
             token_type = InstructionTextTokenType.TextToken
         elif _type == REG:
             token_type = InstructionTextTokenType.RegisterToken
+        elif _type == REG_DEREF:
+            token_type = InstructionTextTokenType.RegisterToken
 
         return value, token_type
 
     def disasm(self, data, addr):
         instr = Instruction(data)
         tokens = [InstructionTextToken(InstructionTextTokenType.InstructionToken, instr.mnemonic)]
-        if self.op1 is not None:
-            value, token_type = Disassembler.parse_operand(self.op1)
+        if instr.op1 is not None:
+            value, token_type = Disassembler.parse_operand(instr.op1)
             tokens.append(InstructionTextToken(token_type, value))
-        if self.op2 is not None:
+        if instr.op2 is not None:
             tokens.append(InstructionTextToken(InstructionTextTokenType.OperandSeparatorToken, ", "))
 
-            value, token_type = Disassembler.parse_operand(self.op2)
+            value, token_type = Disassembler.parse_operand(instr.op2)
             tokens.append(InstructionTextToken(token_type, value))
 
-
+        return tokens, []
     
