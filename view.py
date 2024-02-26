@@ -13,12 +13,21 @@ class View(BinaryView):
         BinaryView.__init__(self, file_metadata=data.file, parent_view=data)
         self.raw = data
 
+        # Constant Entry Point
+        # self.entry_point = 0x100
+
     @classmethod
     def is_valid_for_data(cls, data):
-        return True
+        return data.file.filename.endswith('.b')
 
     def perform_get_default_endianness(self):
         return Endianness.BigEndian
+
+    def perform_is_executable(self):
+        return True
+
+    def perform_get_address_size(self):
+        return 2
 
     def init(self):
         self.platform = Architecture["E0C6S46"].standalone_platform
@@ -29,4 +38,7 @@ class View(BinaryView):
             SegmentFlag.SegmentContainsCode | 
             SegmentFlag.SegmentExecutable
         )
+
+        self.add_entry_point(0x200)
+
         return True

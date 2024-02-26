@@ -660,6 +660,7 @@ class Disassembler:
 
     def disasm(self, data, addr):
         instr = Instruction(data)
+        # print(instr.mnemonic)
         tokens = [InstructionTextToken(InstructionTextTokenType.InstructionToken, instr.mnemonic)]
         if instr.op1 is not None:
             value, token_type = Disassembler.parse_operand(instr.op1)

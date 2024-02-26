@@ -17,9 +17,10 @@ class E0C6S46(Architecture):
     default_int_size = 1
 
     # 12 bit instructions
-    max_instr_size = 2
+    max_instr_length = 2
 
     instr_alignment = 1
+    
     stack_pointer = "PC"
 
     #############
@@ -52,23 +53,23 @@ class E0C6S46(Architecture):
     regs['PC'] = RegisterInfo('PC', 4)
 
     # 1 bit
-    regs['PCB'] = RegisterInfo('PCB', 1)
+    # regs['PCB'] = RegisterInfo('PCB', 1)
 
     # 4 bits
-    regs['PCP'] = RegisterInfo('PCP', 1)
+    # regs['PCP'] = RegisterInfo('PCP', 1)
 
     # 8 bits
-    regs['PCS'] = RegisterInfo('PCS', 1)
+    # regs['PCS'] = RegisterInfo('PCS', 1)
 
     # 4 bits
     regs['F'] = RegisterInfo('F', 1)
 
     # Intrinsics
-    instrinsics = {
-        "NOP5": IntrinsicInfo([], []),
-        "NOP7": IntrinsicInfo([], []),
-        "HALT": IntrinsicInfo([], [])
-    }
+    # instrinsics = {
+    #     "NOP5": IntrinsicInfo([], []),
+    #     "NOP7": IntrinsicInfo([], []),
+    #     "HALT": IntrinsicInfo([], [])
+    # }
 
     def __init__(self):
         super().__init__()
