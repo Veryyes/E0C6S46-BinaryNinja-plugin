@@ -69,7 +69,7 @@ class Instruction:
 
     def parse(self):
         # BRANCH INSTRUCTIONS
-        if self.upper_word == dec('1110') and (self.data[1] >> 1) == dec('010'):
+        if self.upper_word == dec('1110') and (self.middle_word >> 1) == dec('010'):
             self.mnemonic = "PSET"
             self.op1 = (self.data[1] & 31, IMM)
             return
@@ -83,28 +83,24 @@ class Instruction:
             self.mnemonic = "JP"
             self.op1 = ("C", STR)
             self.op2 = (self.s, ADDR)
-            # self.cond = 
             return
 
         if self.upper_word == dec('11'):
             self.mnemonic = "JP"
             self.op1 = ("NC", STR)
             self.op2 = (self.s, ADDR)
-            # self.cond = 
             return
 
         if self.upper_word == dec('110'):
             self.mnemonic = "JP"
             self.op1 = ("Z", STR)
             self.op2 = (self.s, ADDR)
-            # self.cond = 
             return
 
         if self.upper_word == dec('111'):
             self.mnemonic = "JP"
             self.op1 = ("NZ", STR)
             self.op2 = (self.s, ADDR)
-            # self.cond = 
             return
 
         if self.value == dec('111111101000'):
@@ -163,13 +159,148 @@ class Instruction:
             self.mnemonic = "LD"
             self.op1 = ("X", REG)
             self.op2 = (self.s, IMM)
+            return
 
         if self.upper_word == dec('1000'):
             self.mnemonic = "LD"
             self.op1 = ("Y", REG)
             self.op2 = (self.s, IMM)
+            return          
+        
+        if self.upper_word == dec('1010'):
+            # ADC
+            if self.middle_word == dec('0000'):
+                self.mnemonic = "ADC"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0001'):
+                self.mnemonic = "ADC"
+                self.op1 = ("XL", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0010'):
+                self.mnemonic = "ADC"
+                self.op1 = ("YH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+            elif self.middle_word == dec('0011'):
+                self.mnemonic = "ADC"
+                self.op1 = ("YL", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
 
+            # CP
+            if self.middle_word == dec('0100'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+            if self.middle_word == dec('0101'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+            if self.middle_word == dec('0110'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+            if self.middle_word == dec('0111'):
+                self.mnemonic = "CP"
+                self.op1 = ("XH", REG)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+            if self.middle_word == dec('1000'):
+                self.mnemonic = "ADD"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+
+            if self.middle_word == dec('1001'):
+                self.mnemonic = "ADC"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+
+            if self.middle_word == dec('1010'):
+                self.mnemonic = "SUB"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+
+            if self.middle_word == dec('1011'):
+                self.mnemonic = "SBC"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+
+            if self.middle_word == dec('1100'):
+                self.mnemonic = "AND"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+            
+            if self.middle_word == dec('1101'):
+                self.mnemonic = "OR"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+
+            if self.middle_word == dec('1110'):
+                self.mnemonic = "XOR"
+                self.op1 = self.r[self.lower_word >> 2]
+                self.op2 = self.r[self.low_low]
+                return
+            
+            if self.middle_word == dec("1111"):
+                self.mnemonic = "RLC"
+                self.op1 = self.r[self.low_low]
+                return
+
+        # LD
         if self.upper_word == dec('1110'):
+            if (self.middle_word >> 2) & 3 == dec('00'):
+                self.mnemonic = "LD"
+                self.op1 = self.r[self.middle_low]
+                self.op2 = (self.lower_word, IMM)
+                return
+            
+            if (self.middle_word >> 2) & 3 == dec('11'):
+                self.mnemonic = "LD"
+                self.op1 = self.r[(self.lower_word >> 2) & 3]
+                self.op2 = self.r[self.lower_word & 3]
+                return
+
+             # LDPX
+            if self.middle_word == dec('0110'):
+                self.mnemonic = "LDPX"
+                self.op1 = ("IX", REG_DEREF)
+                self.op2 = (self.lower_word, IMM)
+                return
+
+            if self.middle_word == dec('1110'):
+                self.mnemonic = "LDPX"
+                self.op1 = self.r[(self.lower_word >> 2) & 3]
+                self.op2 = self.r[self.lower_word & 3]
+                return
+
+            # LDPY
+            if self.middle_word == dec('0111'):
+                self.mnemonic = "LDPY"
+                self.op1 = ("IY", REG_DEREF)
+                self.op2 = (self.lower_word, IMM)
+                return
+            if self.middle_word == dec('1111'):
+                self.mnemonic = "LDPY"
+                self.op1 = self.r[(self.lower_word >> 2) & 3]
+                self.op2 = self.r[self.lower_word & 3]
+                return
+
             low_high = (self.lower_word >> 2) & 3
             if self.middle_word == dec('1000'):
                 self.mnemonic = "LD"
@@ -200,6 +331,7 @@ class Instruction:
                     self.op1 = ("YL", REG)
                     self.op2 = self.r[low_high]
                     return
+
             elif self.middle_word == dec('1010'):
                 self.mnemonic = "LD"
                 if low_high == dec('00'):
@@ -234,111 +366,7 @@ class Instruction:
                     self.mnemonic = "RRC"
                     self.op1 = self.r[self.low_low]
                     return
-        
-        
-        if self.upper_word == dec('1010'):
-            # ADC
-            if self.middle_word == dec('0000'):
-                self.mnemonic = "ADC"
-                self.op1 = ("XH", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('0001'):
-                self.mnemonic = "ADC"
-                self.op1 = ("XL", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('0010'):
-                self.mnemonic = "ADC"
-                self.op1 = ("YH", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('0011'):
-                self.mnemonic = "ADC"
-                self.op1 = ("YL", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-
-            # CP
-            if self.middle_word == dec('0100'):
-                self.mnemonic = "CP"
-                self.op1 = ("XH", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('0101'):
-                self.mnemonic = "CP"
-                self.op1 = ("XH", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('0110'):
-                self.mnemonic = "CP"
-                self.op1 = ("XH", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('0111'):
-                self.mnemonic = "CP"
-                self.op1 = ("XH", REG)
-                self.op2 = (self.lower_word, IMM)
-                return
-
-        # LD
-        if self.upper_word == dec('1110'):
-            if (self.middle_word >> 2) & 3 == dec('00'):
-                self.mnemonic = "LD"
-                self.op1 = self.r[self.middle_low]
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('1111'):
-                self.mnemonic = "LD"
-                self.op1 = self.r[(self.lower_word >> 2) & 3]
-                self.op2 = self.r[self.lower_word & 3]
-                return
-        if self.upper_word == dec('1111'):
-            if self.middle_word == dec('1010'):
-                self.mnemonic = "LD"
-                self.op1 = ("A", REG)
-                self.op2 = (self.lower_word, ADDR)
-                return
-            elif self.middle_word == dec('1011'):
-                self.mnemonic = "LD"
-                self.op1 = ("B", REG)
-                self.op2 = (self.lower_word, ADDR)
-                return
-            elif self.middle_word == dec('1000'):
-                self.mnemonic = "LD"
-                self.op1 = (self.lower_word, ADDR)
-                self.op2 = ("A", REG)
-                return
-            elif self.middle_word == dec('1001'):
-                self.mnemonic = "LD"
-                self.op1 = (self.lower_word, ADDR)
-                self.op2 = ("B", REG)
-                return 
-
-        if self.upper_word == dec('1110'):
-            # LDPX
-            if self.middle_word == dec('0110'):
-                self.mnemonic = "LDPX"
-                self.op1 = ("IX", REG_DEREF)
-                self.op2 = (self.lower_word, IMM)
-                return
-            if self.middle_word == dec('1110'):
-                self.mnemonic = "LDPX"
-                self.op1 = self.r[(self.lower_word >> 2) & 3]
-                self.op2 = self.r[self.lower_word & 3]
-                return
-            # LDPY
-            if self.middle_word == dec('0111'):
-                self.mnemonic = "LDPY"
-                self.op1 = ("IY", REG_DEREF)
-                self.op2 = (self.lower_word, IMM)
-                return
-            elif self.middle_word == dec('1111'):
-                self.mnemonic = "LDPY"
-                self.op1 = self.r[(self.lower_word >> 2) & 3]
-                self.op2 = self.r[self.lower_word & 3]
-                return
-
+                
         if self.upper_word == dec('1001'):
             self.mnemonic = "LBPX"
             self.op1 = ("IX", REG_DEREF)
@@ -346,6 +374,27 @@ class Instruction:
             return
 
         if self.upper_word == dec('1111'):
+            if self.middle_word == dec('1010'):
+                self.mnemonic = "LD"
+                self.op1 = ("A", REG)
+                self.op2 = (self.lower_word, ADDR)
+                return
+            if self.middle_word == dec('1011'):
+                self.mnemonic = "LD"
+                self.op1 = ("B", REG)
+                self.op2 = (self.lower_word, ADDR)
+                return
+            if self.middle_word == dec('1000'):
+                self.mnemonic = "LD"
+                self.op1 = (self.lower_word, ADDR)
+                self.op2 = ("A", REG)
+                return
+            if self.middle_word == dec('1001'):
+                self.mnemonic = "LD"
+                self.op1 = (self.lower_word, ADDR)
+                self.op2 = ("B", REG)
+                return
+
             if self.middle_word == dec('0100'):
                 if self.lower_word == dec('0001'):
                     self.mnemonic = "SCF"
@@ -552,55 +601,6 @@ class Instruction:
                 self.op1 = self.r[self.middle_low]
                 self.op2 = (self.lower_word, IMM)
                 return
-
-        if self.upper_word == dec('1010'):
-            if self.middle_word == dec('1000'):
-                self.mnemonic = "ADD"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-
-            if self.middle_word == dec('1001'):
-                self.mnemonic = "ADC"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-
-            if self.middle_word == dec('1010'):
-                self.mnemonic = "SUB"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-
-            if self.middle_word == dec('1011'):
-                self.mnemonic = "SBC"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-
-            if self.middle_word == dec('1100'):
-                self.mnemonic = "AND"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-            
-            if self.middle_word == dec('1101'):
-                self.mnemonic = "OR"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-
-            if self.middle_word == dec('1110'):
-                self.mnemonic = "XOR"
-                self.op1 = self.r[self.lower_word >> 2]
-                self.op2 = self.r[self.low_low]
-                return
-            
-            if self.middle_word == dec("1111"):
-                self.mnemonic = "RLC"
-                self.op1 = self.r[self.low_low]
-                return
-
             
         if self.upper_word == dec('1101'):
             if self.middle_word >> 2 == 1:
@@ -663,6 +663,7 @@ class Disassembler:
         # print(instr.mnemonic)
         tokens = [InstructionTextToken(InstructionTextTokenType.InstructionToken, instr.mnemonic)]
         if instr.op1 is not None:
+            tokens.append(InstructionTextToken(InstructionTextTokenType.OperandSeparatorToken, " "))
             value, token_type = Disassembler.parse_operand(instr.op1)
             tokens.append(InstructionTextToken(token_type, value))
         if instr.op2 is not None:

@@ -39,6 +39,6 @@ class View(BinaryView):
             SegmentFlag.SegmentExecutable
         )
 
-        self.add_entry_point(0x200)
+        self.add_entry_point(0x100 * 2)
 
         return True
