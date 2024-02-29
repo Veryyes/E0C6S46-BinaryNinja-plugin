@@ -1,4 +1,8 @@
+from typing import Dict
 from functools import lru_cache
+from dataclasses import dataclass
+import bisect
+from collections import defaultdict
 
 from binaryninja import (
     InstructionTextToken,
@@ -6,9 +10,16 @@ from binaryninja import (
     BranchType
 )
 
+# TODO replace all calls of this 
+# i am dumb
 @lru_cache()
 def dec(binary:str):
     return int(binary, 2)
+
+@dataclass
+class BranchInfo:
+    _type:BranchType
+    target:int = None
 
 IMM = 0
 ADDR = 1
@@ -36,7 +47,7 @@ class Instruction:
         ('IY', REG_DEREF)
     ]
 
-    def __init__(self, data:bytes):
+    def __init__(self, data:bytes, addr:int):
         if len(data) == 0:
             raise ValueError("Zero length bytes to decode")
         elif len(data) < 2:
@@ -45,6 +56,7 @@ class Instruction:
             data = data[-2:]
 
         self.data = data
+        self.addr = addr
 
         # "Macros" to make parsing easier
         self.value = (data[0] << 8) | data[1]
@@ -62,9 +74,9 @@ class Instruction:
         self.mnemonic = None
         self.op1 = None
         self.op2 = None
+        self.branches = []
         self.cond = None
 
-        # TODO flags
         self.parse()
 
     def parse(self):
@@ -77,6 +89,11 @@ class Instruction:
         if self.upper_word == 0:
             self.mnemonic = "JP"
             self.op1 = (self.s, ADDR)
+                       
+            pset = psets.get(self.addr)
+            target_addr = 2 * ((pset.op1[0] << 8) | self.s)
+            self.branches.append(BranchInfo(_type=BranchType.UnconditionalBranch, target=target_addr))
+            
             return
 
         if self.upper_word == dec('10'):
@@ -109,10 +126,12 @@ class Instruction:
 
         if self.upper_word == dec('0100'):
             self.mnemonic = "CALL"
+            self.op1 = ((self.middle_word << 4) | self.lower_word, ADDR)
             return
 
         if self.upper_word == dec('0101'):
             self.mnemonic = "CALZ"
+            self.op1 = ((self.middle_word << 4) | self.lower_word, ADDR)
             return
 
         if self.value == dec('111111011111'):
@@ -630,12 +649,6 @@ class Instruction:
 
         self.mnemonic = "UNKNOWN"
 
-# IMM = 0
-# ADDR = 1
-# STR = 2
-# REG = 3
-# REG_DEREF = 4
-
 class Disassembler:
     def __init__(self):
         pass
@@ -648,7 +661,10 @@ class Disassembler:
             value = hex(value)
         elif _type == ADDR:
             token_type = InstructionTextTokenType.AddressDisplayToken
-            value = hex(value)
+            # Because each address in the ROM is 12 bits (round up to 16bits)
+            # we have to double all addresses displayed since binary ninja
+            # assumes each address has onle 1 byte
+            value = hex(value * 2)
         elif _type == STR:
             token_type = InstructionTextTokenType.TextToken
         elif _type == REG:
@@ -659,8 +675,8 @@ class Disassembler:
         return value, token_type
 
     def disasm(self, data, addr):
-        instr = Instruction(data)
-        # print(instr.mnemonic)
+        instr = Instruction(data, addr)
+
         tokens = [InstructionTextToken(InstructionTextTokenType.InstructionToken, instr.mnemonic)]
         if instr.op1 is not None:
             tokens.append(InstructionTextToken(InstructionTextTokenType.OperandSeparatorToken, " "))
@@ -672,5 +688,61 @@ class Disassembler:
             value, token_type = Disassembler.parse_operand(instr.op2)
             tokens.append(InstructionTextToken(token_type, value))
 
-        return tokens, []
+        return tokens, instr.branches
+
+class PSetFinder:
+    '''
+    Data structure for returning the largest address smaller than the given address on retrieval
+    For branch instructions, we need to query the last PSET that would normally be executed
+    We also assume that each branch instruction only has a single PSET instruction that could be executed before it executes
     
+    i.e Assumes there will never be basic blocks that look like this:
+    .------.   .------.
+    | PSET |   | PSET |
+    `------'   `------'
+         |         |
+         v         v
+       .--------------.
+       | BRANCH INSTR |
+       `--------------'
+    '''
+    DEFAULT = Instruction(b'\x0e\x41', addr=None)
+
+    def __init__(self, bin_size=256):
+        self.bin_size = bin_size
+        self.psets = defaultdict(lambda: [list(), 0])
+        self.history = set()
+        self._size = 0
+
+    def __len__(self):
+        return self._size
+
+    def add(self, addr:int, instr:Instruction):
+        if addr in self.history:
+            return
+
+        self.history.add(addr)
+        self._size += 1
+        key = addr // self.bin_size
+        bin = self.psets[key]
+        bisect.insort(bin[0], instr, key=lambda x: x.addr)
+        # Update the minimum address found in this bin
+        if instr.addr < bin[1]:
+            bin[1] = instr.addr
+
+    def get(self, addr) -> Instruction:
+        key = addr // self.bin_size
+        bin = self.psets[key]
+        while addr < bin[1]:
+            key -= 1
+            if key < 0:
+                return PSetFinder.DEFAULT
+            bin = self.psets[key]
+        
+        i = bisect.bisect_right(bin[0], addr, key=lambda x: x.addr)
+        if i:
+            return bin[0][i-1]
+
+        return PSetFinder.DEFAULT
+
+psets = PSetFinder()
