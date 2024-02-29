@@ -76,6 +76,7 @@ class Instruction:
         self.op2 = None
         self.branches = []
         self.cond = None
+        self.comment = None
 
         self.parse()
 
@@ -93,58 +94,101 @@ class Instruction:
             pset = psets.get(self.addr)
             target_addr = 2 * ((pset.op1[0] << 8) | self.s)
             self.branches.append(BranchInfo(_type=BranchType.UnconditionalBranch, target=target_addr))
-            
             return
 
         if self.upper_word == dec('10'):
             self.mnemonic = "JP"
             self.op1 = ("C", STR)
             self.op2 = (self.s, ADDR)
+
+            pset = psets.get(self.addr)
+            target_addr = 2 * ((pset.op1[0] << 8) | self.s)
+            self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
+            self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
             return
 
         if self.upper_word == dec('11'):
             self.mnemonic = "JP"
             self.op1 = ("NC", STR)
             self.op2 = (self.s, ADDR)
+
+            pset = psets.get(self.addr)
+            target_addr = 2 * ((pset.op1[0] << 8) | self.s)
+            self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
+            self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
             return
 
         if self.upper_word == dec('110'):
             self.mnemonic = "JP"
             self.op1 = ("Z", STR)
             self.op2 = (self.s, ADDR)
+
+            pset = psets.get(self.addr)
+            target_addr = 2 * ((pset.op1[0] << 8) | self.s)
+            self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
+            self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
             return
 
         if self.upper_word == dec('111'):
             self.mnemonic = "JP"
             self.op1 = ("NZ", STR)
             self.op2 = (self.s, ADDR)
+
+            pset = psets.get(self.addr)
+            target_addr = 2 * ((pset.op1[0] << 8) | self.s)
+            self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
+            self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
             return
 
         if self.value == dec('111111101000'):
             self.mnemonic = "JPBA"
+            self.branches.append(BranchInfo(_type=BranchType.IndirectBranch))
             return
 
         if self.upper_word == dec('0100'):
             self.mnemonic = "CALL"
-            self.op1 = ((self.middle_word << 4) | self.lower_word, ADDR)
+            self.op1 = (self.s, ADDR)
+            
+            
+            pset = psets.get(self.addr)
+
+            # NBP not used
+            # Bank of Current PC | Page set by PSET | op1
+            target_addr = self.addr & (1 << 13)
+            target_addr |= (pset.op1[0] & 15) << 8
+            target_addr |= self.s
+            target_addr = 2 * target_addr
+            
+            self.branches.append(BranchInfo(_type=BranchType.CallDestination, target=target_addr))
             return
 
         if self.upper_word == dec('0101'):
             self.mnemonic = "CALZ"
-            self.op1 = ((self.middle_word << 4) | self.lower_word, ADDR)
+            self.op1 = (self.s, ADDR)
+
+            # Bank of Current PC | Page 0 | op1
+            target_addr = self.addr & (1 << 13)
+            target_addr |= self.s
+            target_addr = 2 * target_addr
+            self.branches.append(BranchInfo(_type=BranchType.CallDestination, target=target_addr))
             return
 
         if self.value == dec('111111011111'):
             self.mnemonic = "RET"
+            self.branches.append(BranchInfo(_type=BranchType.FunctionReturn))
             return
 
         if self.value == dec('111111011110'):
             self.mnemonic = "RETS"
+            # i.e. the PC it should return to is Return Address + 2
+            self.comment = "Skips over the next instruction after returning"
+            self.branches.append(BranchInfo(_type=BranchType.FunctionReturn))
             return
 
         if self.upper_word == dec('0001'):
             self.mnemonic = "RETD"
             self.op1 = ((self.middle_word << 4) | self.lower_word, IMM)
+            self.branches.append(BranchInfo(_type=BranchType.FunctionReturn))
             return
 
         # SYSTEM CONTROL
@@ -687,6 +731,9 @@ class Disassembler:
 
             value, token_type = Disassembler.parse_operand(instr.op2)
             tokens.append(InstructionTextToken(token_type, value))
+
+        if instr.comment is not None:
+            tokens.append(InstructionTextToken(InstructionTextTokenType.CommentToken, f" {instr.comment}"))
 
         return tokens, instr.branches
 
