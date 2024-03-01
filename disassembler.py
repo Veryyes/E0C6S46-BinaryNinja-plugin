@@ -7,7 +7,8 @@ from collections import defaultdict
 from binaryninja import (
     InstructionTextToken,
     InstructionTextTokenType,
-    BranchType
+    BranchType, 
+    LowLevelILLabel
 )
 
 # TODO replace all calls of this 
@@ -47,7 +48,7 @@ class Instruction:
         ('IY', REG_DEREF)
     ]
 
-    def __init__(self, data:bytes, addr:int):
+    def __init__(self, data:bytes, addr:int, il=None):
         if len(data) == 0:
             raise ValueError("Zero length bytes to decode")
         elif len(data) < 2:
@@ -75,16 +76,39 @@ class Instruction:
         self.op1 = None
         self.op2 = None
         self.branches = []
-        self.cond = None
         self.comment = None
+
+        self.il = il
 
         self.parse()
 
     def parse(self):
+        il = self.il
+        if il:
+            # convenient consts 
+            twelve = il.const(1, 12)
+            eight = il.const(1, 8)
+            four = il.const(1, 4)
+            one = il.const(1, 1)
+            zero = il.const(1, 0)
+
         # BRANCH INSTRUCTIONS
         if self.upper_word == dec('1110') and (self.middle_word >> 1) == dec('010'):
             self.mnemonic = "PSET"
             self.op1 = (self.data[1] & 31, IMM)
+
+            if il:
+                op1 = il.const(1, self.op1[0])
+
+                # NBP = 5th msb of op1
+                bank = il.arith_shift_right(1, op1, il.const(1, 4))
+                il.append(il.set_reg(1, "NBP", bank))
+
+                # NPP = least sig nibble of op1
+                mask = il.const(1, 15)
+                page = il.and_expr(1, op1, mask)
+                il.append(il.set_reg(1, "NPP", page))
+
             return
 
         if self.upper_word == 0:
@@ -94,6 +118,22 @@ class Instruction:
             pset = psets.get(self.addr)
             target_addr = 2 * ((pset.op1[0] << 8) | self.s)
             self.branches.append(BranchInfo(_type=BranchType.UnconditionalBranch, target=target_addr))
+
+            if il:
+                nbp = il.reg(1, "NBP")
+                npp = il.reg(1, "NPP")
+                step = il.const(1, self.s)
+
+                nbp = il.shift_left(2, nbp, twelve)
+                npp = il.shift_left(2, npp, eight)
+
+                target = il.or_expr(2, nbp, npp)
+                target = il.or_expr(2, target, step)
+
+                # Double address
+                target = il.shift_left(2, target, one)
+                il.append(il.jump(target))
+
             return
 
         if self.upper_word == dec('10'):
@@ -105,6 +145,31 @@ class Instruction:
             target_addr = 2 * ((pset.op1[0] << 8) | self.s)
             self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
             self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
+
+            if il:
+                c = il.reg(1, "C")
+                nbp = il.reg(1, "NBP")
+                npp = il.reg(1, "NPP")
+                step = il.const(1, self.s)
+
+                nbp = il.shift_left(2, nbp, twelve)
+                npp = il.shift_left(2, npp, eight)
+
+                target = il.or_expr(2, nbp, npp)
+                target = il.or_expr(2, target, step)
+
+                # Double address
+                target = il.shift_left(2, target, one)
+                il.append(il.jump(target))
+
+                cond = il.compare_equal(1, one, c)
+                t = LowLevelILLabel()
+                f = LowLevelILLabel()
+                il.append(il.if_expr(cond, t, f))
+                il.mark_label(t)
+                il.append(il.jump(target))
+                il.mark_label(f)
+
             return
 
         if self.upper_word == dec('11'):
@@ -116,6 +181,31 @@ class Instruction:
             target_addr = 2 * ((pset.op1[0] << 8) | self.s)
             self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
             self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
+
+            if il:
+                c = il.reg(1, "C")
+                nbp = il.reg(1, "NBP")
+                npp = il.reg(1, "NPP")
+                step = il.const(1, self.s)
+
+                nbp = il.shift_left(2, nbp, twelve)
+                npp = il.shift_left(2, npp, eight)
+
+                target = il.or_expr(2, nbp, npp)
+                target = il.or_expr(2, target, step)
+
+                # Double address
+                target = il.shift_left(2, target, one)
+                il.append(il.jump(target))
+
+                cond = il.compare_equal(1, zero, c)
+                t = LowLevelILLabel()
+                f = LowLevelILLabel()
+                il.append(il.if_expr(cond, t, f))
+                il.mark_label(t)
+                il.append(il.jump(target))
+                il.mark_label(f)
+
             return
 
         if self.upper_word == dec('110'):
@@ -127,6 +217,31 @@ class Instruction:
             target_addr = 2 * ((pset.op1[0] << 8) | self.s)
             self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
             self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
+            
+            if il:
+                z = il.reg(1, "Z")
+                nbp = il.reg(1, "NBP")
+                npp = il.reg(1, "NPP")
+                step = il.const(1, self.s)
+
+                nbp = il.shift_left(2, nbp, twelve)
+                npp = il.shift_left(2, npp, eight)
+
+                target = il.or_expr(2, nbp, npp)
+                target = il.or_expr(2, target, step)
+
+                # Double address
+                target = il.shift_left(2, target, one)
+                il.append(il.jump(target))
+
+                cond = il.compare_equal(1, one, z)
+                t = LowLevelILLabel()
+                f = LowLevelILLabel()
+                il.append(il.if_expr(cond, t, f))
+                il.mark_label(t)
+                il.append(il.jump(target))
+                il.mark_label(f)
+            
             return
 
         if self.upper_word == dec('111'):
@@ -138,11 +253,59 @@ class Instruction:
             target_addr = 2 * ((pset.op1[0] << 8) | self.s)
             self.branches.append(BranchInfo(_type=BranchType.TrueBranch, target=target_addr))
             self.branches.append(BranchInfo(_type=BranchType.FalseBranch, target=self.addr+2))
+
+            if il:
+                z = il.reg(1, "Z")
+                nbp = il.reg(1, "NBP")
+                npp = il.reg(1, "NPP")
+                step = il.const(1, self.s)
+
+                nbp = il.shift_left(2, nbp, twelve)
+                npp = il.shift_left(2, npp, eight)
+
+                target = il.or_expr(2, nbp, npp)
+                target = il.or_expr(2, target, step)
+
+                # Double address
+                target = il.shift_left(2, target, one)
+                il.append(il.jump(target))
+
+                cond = il.compare_equal(1, zero, z)
+                t = LowLevelILLabel()
+                f = LowLevelILLabel()
+                il.append(il.if_expr(cond, t, f))
+                il.mark_label(t)
+                il.append(il.jump(target))
+                il.mark_label(f)
+            
             return
 
         if self.value == dec('111111101000'):
             self.mnemonic = "JPBA"
             self.branches.append(BranchInfo(_type=BranchType.IndirectBranch))
+            
+            if il:
+                pset = psets.get(self.addr)
+                a = il.reg(1, "A")
+                b = il.reg(1, "B")
+                
+                # Jump to NBP << 12 | NPP << 8 | B << 4 | A
+                nbp = il.reg(1, "NBP")
+                npp = il.reg(1, "NPP")
+                step = il.const(1, self.s)
+
+                nbp = il.shift_left(2, nbp, twelve)
+                npp = il.shift_left(2, npp, eight)
+
+                target = il.or_expr(2, nbp, npp)
+                target = il.or_expr(2, target, il.shift_left(1, b, four))
+                target = il.or_expr(2, target, a)
+                
+                # Double address
+                target = il.shift_left(2, target, one)
+                il.append(il.jump(target))
+
+
             return
 
         if self.upper_word == dec('0100'):

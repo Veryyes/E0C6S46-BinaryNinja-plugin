@@ -6,6 +6,7 @@ from binaryninja import (
 )
 
 from .disassembler import Disassembler
+from .lifter import Lifter
 
 class E0C6S46(Architecture):
     name = "E0C6S46"
@@ -78,22 +79,18 @@ class E0C6S46(Architecture):
     # PCB    PCP           PCS
     regs['PC'] = RegisterInfo('PC', 2)
 
-    # 1 bit
-    regs['PCB'] = RegisterInfo('PC', 1, 1)
-
-    # 4 bits
-    regs['PCP'] = RegisterInfo('PCP', 1, 1)
-
-    # 8 bits
-    regs['PCS'] = RegisterInfo('PC', 1, 0)
-
     # 4 bit Flag Register
-    regs['F'] = RegisterInfo('F', 1)
+    regs['C'] = RegisterInfo('C', 1)
+    regs['Z'] = RegisterInfo('Z', 1)
+    regs['D'] = RegisterInfo('D', 1)
+    regs['I'] = RegisterInfo('I', 1)
+
 
     def __init__(self):
         super().__init__()
         print(f"{self.__class__.__name__} Arch Plugin Loaded")
         self.disassembler = Disassembler()
+        self.lifter = Lifter()
 
     def get_instruction_info(self, data, addr):
         _, branches = self.disassembler.disasm(data, addr)
@@ -111,4 +108,5 @@ class E0C6S46(Architecture):
         return tokens, 2
 
     def get_instruction_low_level_il(self, data, addr, il):
+        self.lifter.lift(data, addr, il)
         return 2
